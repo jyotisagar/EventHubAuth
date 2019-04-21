@@ -1,7 +1,23 @@
 const express = require('express')
 const router  = express.Router()
 const User = require('../models/user')
+const jwt = require('jsonwebtoken')
 
+function verifyToken(req, res, next){
+    if(!req.headers.authorization){
+        res.status(401).send('Unauthorized request')
+    }
+    let token = req.headers.authorization.split(' ')[1]
+    if(token === 'null'){
+        res.status(401).send('Unauthorized request')
+    }
+    let payload = jwt.verify(token, 'secretKey')
+    if(!payload){
+        res.status(401).send('Unauthorized request')
+    }
+    req.userId = payload.subject
+    next()
+}
 router.get('/',(req,res)=>{
     res.send('Response from API route')
 })
@@ -14,7 +30,9 @@ router.post('/register',(req,res) => {
             console.log('Error - register api:', error)
         }
         else{
-            res.status(200).send(registeredUser)
+            var payload = {subject: registeredUser._id }
+            var token = jwt.sign(payload, 'secretKey')
+            res.status(200).send({token})
         }
     })
 
@@ -35,14 +53,16 @@ router.post('/login', (req,res) => {
                     res.status(401).send('Invalid password')
                 }
                 else{
-                    res.status(200).send(user)
+                    var payload = { subject: user._id }
+                    var token = jwt.sign(payload, 'secretKey')
+                    res.status(200).send({token})
                 }
             }
         }
     })
 })
 
-router.get('/events',(req,res) => {
+router.get('/events', (req,res) => {
     let events = [
         {
             'id': 1,
@@ -73,7 +93,7 @@ router.get('/events',(req,res) => {
     res.json(events)
 })
 
-router.get('/special',(req,res) => {
+router.get('/specialEvents', verifyToken, (req,res) => {
     let events = [
         {
             'id': 1,
